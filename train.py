@@ -5,7 +5,7 @@ from utils import *
 
 
 #---------------------------------设置参数-------------------------------------
-dataset='cora'                              # 数据集：'cora'/ 'citeseer'/ 'pubmed'
+dataset='pubmed'                            # 数据集：'cora'/ 'citeseer'/ 'pubmed'
 
 if dataset == 'cora':
     total_sample_num = 2703                 # 总数据量
@@ -16,7 +16,9 @@ if dataset == 'citeseer':
     feature_dim = 3703 
     label_dim = 6
 if dataset == 'pubmed':
-    ...
+    total_sample_num = 19717 
+    feature_dim = 500 
+    label_dim = 3
 
 dim_rounds = [128, label_dim]               # GraphSAGE各轮聚合器的输出维度
 aggr_method_rounds=['gcn', 'mean']          # GraphSAGE各轮聚合器的聚合方法
@@ -30,7 +32,7 @@ metrics=['acc']                             # GraphSAGE评价指标
 train_size = [0, 0.5]                       # 训练数据量，整个数据集的前50%部分
 valid_size = [0.5, 0.8]                     # 验证数据量，整个数据集的50%-80%部分
 batch_size = 64                             # 训练批次大小
-epochs = 5                                 # 训练轮数                                                              
+epochs = 5                                  # 训练轮数                                                              
 steps_per_epoch = total_sample_num*(        # 每轮训练步数，不超过训练样本量//batch_size
     train_size[1]-train_size[0])//batch_size                      
 #-----------------------------------------------------------------------------
@@ -55,7 +57,7 @@ if dataset == 'cora':
 if dataset == 'citeseer':
     A,X,Y = load_citeseer(data_path)
 if dataset == 'pubmed':
-    ...
+    A,X,Y = load_pubmed(data_path)
 
 train_index = [i for i in range(int(len(X)*train_size[0]), int(len(X)*train_size[1]))]
 valid_index = [i for i in range(int(len(X)*valid_size[0]), int(len(X)*valid_size[1]))]

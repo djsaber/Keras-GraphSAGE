@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from keras.utils import Sequence
+from tqdm import tqdm
+
 
 def sampling(src_nodes, sample_num, neighbor_table, seed=1):
     '''根据源节点采样指定数量的邻居节点，注意使用的是有放回的采样；
@@ -45,16 +47,14 @@ def multihop_sampling(src_nodes, sample_nums, neighbor_table, seed):
 
 
 def load_cora(path):
-    """
-    读取cora数据集
+    '''读取cora数据集
     参数：
         - path：数据集路径
-        - train_nodes：训练节点数量
     返回：
         - A：邻接矩阵
         - X：特征矩阵
         - Y：训练时的标签
-    """
+    '''
     raw_data = pd.read_csv(path+'/cora.content', sep='\t', header=None)
     raw_data_cites = pd.read_csv(path+'/cora.cites', sep='\t', header=None)
     node_num = raw_data.shape[0]
@@ -74,16 +74,21 @@ def load_cora(path):
 
 
 def load_citeseer(path):
+    '''读取citeseer数据集
+    参数：
+        - path：数据集路径
+    返回：
+        - A：邻接矩阵
+        - X：特征矩阵
+        - Y：训练时的标签
+    '''
     raw_data = pd.read_csv(path+'/citeseer.content', sep='\t', header=None)
     raw_data_cites = pd.read_csv(path+'/citeseer.cites', sep='\t', header=None)
-
-    # 获取邻接矩阵
     node_num = raw_data.shape[0]
     node_id = list(raw_data.index)
     paper_id = list(raw_data[0])
     paper_id = [str(a_paper_id) for a_paper_id in paper_id]
     map_dict = dict(zip(paper_id, node_id))
-
     A = np.eye(node_num, dtype='float32')
     for paper_id_i, paper_id_j in zip(raw_data_cites[0], raw_data_cites[1]):
         try:
@@ -93,10 +98,51 @@ def load_citeseer(path):
                 A[x][y] = A[y][x] = 1
         except:
             print(f'{paper_id_i} or {paper_id_j} is not in map_dict.keys()!')
-
-    # 获取特征矩阵和标签矩阵
     X = raw_data.iloc[:,1:-1].to_numpy(dtype='float32')
     Y = pd.get_dummies(raw_data[3704]).to_numpy(dtype='float32')
+
+    return A, X, Y
+
+
+def load_pubmed(path):
+    '''读取citeseer数据集
+    参数：
+        - path：数据集路径
+    返回：
+        - A：邻接矩阵
+        - X：特征矩阵
+        - Y：训练时的标签
+    '''
+    paper2idx = {}
+    word2idx = {}
+    with open(path+'/Pubmed-Diabetes.DIRECTED.cites.tab', "r") as f:
+        lines = f.readlines()[2:]
+        edges = set()
+        for line in tqdm(lines, desc='load nodes and edges'):
+            paper1 = line[line.index(':')+1:line.rindex(':')-8]
+            paper2 = line[line.rindex(':')+1:-1]
+            paper2idx.setdefault(paper1, len(paper2idx))
+            paper2idx.setdefault(paper2, len(paper2idx))
+            edges.add((paper2idx[paper1], paper2idx[paper2]))
+    Graph = nx.Graph()
+    Graph.add_edges_from(edges)
+    A = nx.adjacency_matrix(Graph, nodelist=list(paper2idx.values())).todense()
+    A = A.astype('float32')
+    A += np.eye(A.shape[0])
+    with open(path+'/Pubmed-Diabetes.NODE.paper.tab', "r") as f:
+        lines = f.readlines()[2:]
+        X = np.zeros((A.shape[0], 500), np.float32)
+        Y = np.zeros((A.shape[0], 3), np.float32)
+        for line in tqdm(lines, desc='load features and labels'):
+            inf = line.split('\t')[:-1]
+            node = paper2idx[inf[0]]
+            label = int(inf[1][-1])-1
+            feature = {w.split('=')[0]:float(w.split('=')[1]) for w in inf[2:]}
+            Y[node][label] = 1
+            for w,v in feature.items():
+                word2idx.setdefault(w, len(word2idx))
+                idx = word2idx[w]
+                X[node][idx] = v
 
     return A, X, Y
 
